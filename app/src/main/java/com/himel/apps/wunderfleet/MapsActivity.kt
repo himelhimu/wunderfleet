@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -17,9 +18,11 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.maps.android.ui.IconGenerator
 import com.himel.apps.wunderfleet.databinding.ActivityMapsBinding
 import com.himel.apps.wunderfleet.models.Car
 import com.himel.apps.wunderfleet.ui.home.HomeViewModel
@@ -29,19 +32,24 @@ import dagger.hilt.android.AndroidEntryPoint
 private const val TAG = "MapsActivity"
 private const val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION: Int = 33
 private const val DEFAULT_ZOOM = 15
+
 @AndroidEntryPoint
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
+    private var markerTapCounter=0
 
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityMapsBinding
     private lateinit var homeViewModel: HomeViewModel
 
     private var locationPermissionGranted = false
+    private var markerList: MutableList<Marker> = mutableListOf()
+    private var carMarkerMap: MutableMap<Marker, Car> = mutableMapOf()
 
     // The geographical location where the device is currently located. That is, the last-known
     // location retrieved by the Fused Location Provider.
     private var lastKnownLocation: Location? = null
+
     // The entry point to the Fused Location Provider.
     private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
 
@@ -62,10 +70,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
-    fun observeForCarList(){
+    fun observeForCarList() {
         homeViewModel.apiResponse.observe(this) {
             if (it != null && it.data!!.isNotEmpty()) {
-                    processData(it.data)
+                processData(it.data)
             }
         }
     }
@@ -79,30 +87,38 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
          * device. The result of the permission request is handled by a callback,
          * onRequestPermissionsResult.
          */
-        if (ContextCompat.checkSelfPermission(this.applicationContext,
-                Manifest.permission.ACCESS_FINE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(
+                this.applicationContext,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            )
+            == PackageManager.PERMISSION_GRANTED
+        ) {
             locationPermissionGranted = true
             updateLocationUI()
         } else {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
+            ActivityCompat.requestPermissions(
+                this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION
+            )
         }
     }
 
     /**
      * Handles the result of the request for location permissions.
      */
-    override fun onRequestPermissionsResult(requestCode: Int,
-                                            permissions: Array<String>,
-                                            grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
         locationPermissionGranted = false
         when (requestCode) {
             PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION -> {
 
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.isNotEmpty() &&
-                    grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED
+                ) {
                     locationPermissionGranted = true
                 }
             }
@@ -112,18 +128,43 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun processData(data: List<Car>) {
-        if (mMap==null){
+        if (mMap == null) {
             return
         }
         data.forEach { car ->
-            val latLng = LatLng(car.lat!!,car.lon!!)
-            mMap.addMarker(MarkerOptions()
-                .position(latLng).title(car.title))
+            val latLng = LatLng(car.lat!!, car.lon!!)
+            mMap.addMarker(
+                MarkerOptions()
+                    .position(latLng).title(car.title)
+                    .snippet(car.title)
+            ).also {
+                if (it != null) {
+                    markerList.add(it)
+                    carMarkerMap[it] = car
+                }
+            }
             mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng))
         }
 
-        mMap.setOnMarkerClickListener(object : OnMarkerClickListener{
-            override fun onMarkerClick(p0: Marker): Boolean {
+        mMap.setOnMarkerClickListener(object : OnMarkerClickListener {
+            override fun onMarkerClick(clickedMarker: Marker): Boolean {
+                markerTapCounter++
+
+
+                val car = carMarkerMap[clickedMarker]
+                if (markerTapCounter==2){
+                    Toast.makeText(this@MapsActivity,"Will go to ${car?.title}",Toast.LENGTH_SHORT).show()
+                }
+                val iconGenerator = IconGenerator(this@MapsActivity)
+                mMap.clear()
+
+                iconGenerator.setStyle(IconGenerator.STYLE_GREEN)
+                iconGenerator.makeIcon(car?.title)
+                val bitmap = iconGenerator.makeIcon()
+                val icon = BitmapDescriptorFactory.fromBitmap(bitmap)
+                val latLng = LatLng(car?.lat!!, car.lon!!)
+                mMap.addMarker(MarkerOptions().position(latLng).icon(icon))
+                mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng))
                 return true
             }
 
@@ -170,9 +211,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                         // Set the map's camera position to the current location of the device.
                         lastKnownLocation = task.result
                         if (lastKnownLocation != null) {
-                            mMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                                LatLng(lastKnownLocation!!.latitude,
-                                    lastKnownLocation!!.longitude), DEFAULT_ZOOM.toFloat()))
+                            mMap?.moveCamera(
+                                CameraUpdateFactory.newLatLngZoom(
+                                    LatLng(
+                                        lastKnownLocation!!.latitude,
+                                        lastKnownLocation!!.longitude
+                                    ), DEFAULT_ZOOM.toFloat()
+                                )
+                            )
                         }
                     } else {
                         Log.d(TAG, "Current location is null. Using defaults.")
