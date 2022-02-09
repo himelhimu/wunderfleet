@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName
 
 data class Car(
 
-    @SerializedName("carId") var carId: Int? = null,
+    @SerializedName("carId") var carId: Int,
     @SerializedName("title") var title: String? = null,
     @SerializedName("lat") var lat: Double? = null,
     @SerializedName("lon") var lon: Double? = null,
@@ -22,6 +22,7 @@ data class Car(
     @SerializedName("address") var address: String? = null,
     @SerializedName("zipCode") var zipCode: String? = null,
     @SerializedName("city") var city: String? = null,
-    @SerializedName("locationId") var locationId: Int? = null
-
+    @SerializedName("locationId") var locationId: Int? = null,
+    @SerializedName("damageDescription")var damageDesc:String?=null,
+    @SerializedName("vehicleTypeImageUrl")var imageUrl:String?=null
 )

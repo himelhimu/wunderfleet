@@ -2,6 +2,7 @@ package com.himel.apps.wunderfleet
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
@@ -25,6 +26,7 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.google.maps.android.ui.IconGenerator
 import com.himel.apps.wunderfleet.databinding.ActivityMapsBinding
 import com.himel.apps.wunderfleet.models.Car
+import com.himel.apps.wunderfleet.ui.details.CarDetailsActivity
 import com.himel.apps.wunderfleet.ui.home.HomeViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -36,7 +38,7 @@ private const val DEFAULT_ZOOM = 15
 @AndroidEntryPoint
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
-    private var markerTapCounter=0
+    private var markerTapCounter = 0
 
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityMapsBinding
@@ -146,33 +148,35 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng))
         }
 
-        mMap.setOnMarkerClickListener(object : OnMarkerClickListener {
-            override fun onMarkerClick(clickedMarker: Marker): Boolean {
-                markerTapCounter++
+        mMap.setOnMarkerClickListener { clickedMarker ->
+            markerTapCounter++
+            val car = carMarkerMap[clickedMarker]
+            if (markerTapCounter == 2) {
+                Toast.makeText(
+                    this@MapsActivity,
+                    "Will go to ${car?.title}",
+                    Toast.LENGTH_SHORT
+                ).show()
+                startActivity(Intent(this,CarDetailsActivity::class.java).apply {
+                    putExtra("car_id",car?.carId)
+                })
 
 
-                val car = carMarkerMap[clickedMarker]
-                if (markerTapCounter==2){
-                    Toast.makeText(this@MapsActivity,"Will go to ${car?.title}",Toast.LENGTH_SHORT).show()
-
-
-                }else if(markerTapCounter<=1){
-                    val iconGenerator = IconGenerator(this@MapsActivity)
-                    mMap.clear()
-
-                    iconGenerator.setStyle(IconGenerator.STYLE_GREEN)
-                    iconGenerator.makeIcon(car?.title)
-                    val bitmap = iconGenerator.makeIcon()
-                    val icon = BitmapDescriptorFactory.fromBitmap(bitmap)
-                    val latLng = LatLng(car?.lat!!, car.lon!!)
-                    mMap.addMarker(MarkerOptions().position(latLng).icon(icon))
-                    mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng))
-                }
-
-                return true
+            } else if (markerTapCounter <= 1) {
+                mMap.clear()
+                val iconGenerator = IconGenerator(this@MapsActivity)
+                iconGenerator.setStyle(IconGenerator.STYLE_GREEN)
+                iconGenerator.makeIcon(car?.title)
+                val bitmap = iconGenerator.makeIcon()
+                val icon = BitmapDescriptorFactory.fromBitmap(bitmap)
+                val latLng = LatLng(car?.lat!!, car.lon!!)
+                val newMarker = mMap.addMarker(MarkerOptions().position(latLng).icon(icon))
+                mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng))
+                if (newMarker!=null) carMarkerMap[newMarker] = car
             }
 
-        })
+            true
+        }
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
