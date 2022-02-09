@@ -154,17 +154,21 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 val car = carMarkerMap[clickedMarker]
                 if (markerTapCounter==2){
                     Toast.makeText(this@MapsActivity,"Will go to ${car?.title}",Toast.LENGTH_SHORT).show()
-                }
-                val iconGenerator = IconGenerator(this@MapsActivity)
-                mMap.clear()
 
-                iconGenerator.setStyle(IconGenerator.STYLE_GREEN)
-                iconGenerator.makeIcon(car?.title)
-                val bitmap = iconGenerator.makeIcon()
-                val icon = BitmapDescriptorFactory.fromBitmap(bitmap)
-                val latLng = LatLng(car?.lat!!, car.lon!!)
-                mMap.addMarker(MarkerOptions().position(latLng).icon(icon))
-                mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng))
+
+                }else if(markerTapCounter<=1){
+                    val iconGenerator = IconGenerator(this@MapsActivity)
+                    mMap.clear()
+
+                    iconGenerator.setStyle(IconGenerator.STYLE_GREEN)
+                    iconGenerator.makeIcon(car?.title)
+                    val bitmap = iconGenerator.makeIcon()
+                    val icon = BitmapDescriptorFactory.fromBitmap(bitmap)
+                    val latLng = LatLng(car?.lat!!, car.lon!!)
+                    mMap.addMarker(MarkerOptions().position(latLng).icon(icon))
+                    mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng))
+                }
+
                 return true
             }
 
